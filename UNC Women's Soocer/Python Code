@@ -1,0 +1,29 @@
+import pandas as pd
+import os
+
+# Ensure the required dependency is installed
+try:
+    import openpyxl
+except ImportError:
+    import subprocess
+    subprocess.check_call(['pip', 'install', 'openpyxl'])
+
+# Pull the latest changes from GitHub
+os.system('git pull')
+
+# Read the Excel files
+# Code hidden for privacy purposes
+
+#Clean the data based on names (names hidden for privacy reasons)
+# Correcting specific names in the 'Athlete' column
+player_stats['Athlete'] = player_stats['Athlete'].replace({
+    '___ __ ___': '___ ___', 
+    '___ ___': '___ ___', 
+    '___ ____ ___': '__ ___'
+})
+
+# Splitting 'Athlete' column into 'First' and 'Last'
+player_stats[['First', 'Last']] = player_stats['Athlete'].str.split(' ', n=1, expand=True)
+
+# Display the updated DataFrame
+print(player_stats)
