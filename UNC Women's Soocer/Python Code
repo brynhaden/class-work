@@ -11,19 +11,75 @@ except ImportError:
 # Pull the latest changes from GitHub
 os.system('git pull')
 
-# Read the Excel files
-# Code hidden for privacy purposes
+# Read the Excel files 
+player_readiness = pd.read_excel(___)
+player_stats = pd.read_excel(___)
 
-#Clean the data based on names (names hidden for privacy reasons)
-# Correcting specific names in the 'Athlete' column
-player_stats['Athlete'] = player_stats['Athlete'].replace({
-    '___ __ ___': '___ ___', 
+# Correcting specific names in the 'Athlete' column of player_stats
+name_corrections = {
+    '___ ___ ___': '___ ___', 
     '___ ___': '___ ___', 
-    '___ ____ ___': '__ ___'
-})
+    '___ ___ ___': '___ ___'
+}
 
-# Splitting 'Athlete' column into 'First' and 'Last'
-player_stats[['First', 'Last']] = player_stats['Athlete'].str.split(' ', n=1, expand=True)
+# Apply name corrections to the 'Athlete' column in player_stats
+if 'Athlete' in player_stats.columns:
+    player_stats['Athlete'] = player_stats['Athlete'].replace(name_corrections)
+
+# Split 'Athlete' column into 'First' and 'Last' in player_stats
+if 'Athlete' in player_stats.columns:
+    player_stats[['First', 'Last']] = player_stats['Athlete'].str.split(' ', n=1, expand=True)
+
+# Dictionary to store unique IDs (hidden for player privacy)
+player_id_mapping = {
+    '___ ___': '907',
+    '___ ___': '908',
+    '___ ___': '909',
+    '___ ___': '910',
+    '___ ___': '911',
+    '___ ___': '912',
+    '___ ___': '913',
+    '___ ___': '914',
+    '___ ___': '915',
+    '___ ___': '916',
+    '___ ___': '917',
+    '___ ___': '918',
+    '___ ___': '919',
+    '___ ___': '920',
+    '___ ___': '921',
+    '___ ___': '922',
+    '___ ___': '923',
+    '___ ___': '924',
+    '___ ___': '925',
+    '___ ___': '926',
+    '___ ___': '927',
+    '___ ___': '928',
+    '___ ___': '929',
+    '___ ___': '930',
+    '___ ___': '931',
+    '___ ___': '932',
+    '___ ___': '933'
+
+}
+# Function to get PlayerID from the mapping
+def get_player_id(first, last, id_mapping):
+    full_name = f"{first} {last}"
+    return id_mapping.get(full_name, None)
+
+# Combine all DataFrames based on matching 'First' and 'Last' names
+combined_df = pd.merge(player_readiness, player_stats, on=['First', 'Last'], how='outer')
+
+# Assign PlayerID to the combined DataFrame
+combined_df['PlayerID'] = combined_df.apply(lambda row: get_player_id(row['First'], row['Last'], player_id_mapping), axis=1)
+
+# Identify rows with missing PlayerID
+missing_ids = combined_df[combined_df['PlayerID'].isnull()]
+if not missing_ids.empty:
+    print("Rows with missing PlayerID:")
+    print(missing_ids[['First', 'Last']])
+
+# Drop 'First', 'Last', and 'Athlete' columns
+combined_df.drop(columns=['First', 'Last', 'Athlete'], inplace=True, errors='ignore')
 
 # Display the updated DataFrame
-print(player_stats)
+print(combined_df)
