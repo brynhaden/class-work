@@ -1,1 +1,319 @@
+####################################Importing the Readiness data from FitFor90 CSVs##################################################################
+import pandas as pd
+import os
 
+# Ensure the required dependency is installed
+try:
+    import openpyxl
+except ImportError:
+    import subprocess
+    subprocess.check_call(['pip', 'install', 'openpyxl'])
+
+# Pull the latest changes from GitHub
+os.system('git pull')
+
+# List of filenames
+filenames = [
+    '/work/UNCWSoccer/uncwomensoccer-readiness-qs_01-21-to-02-19-2025.csv',
+    '/work/UNCWSoccer/uncwomensoccer-readiness-qs_02-19-to-02-22-2025.csv'
+    # Add more filenames as time goes on. Just go hover over the name on the left and click copy path to clipboard and then copy that in
+]
+
+# Load and concatenate all CSV files
+dfs = [pd.read_csv(filename) for filename in filenames]
+merged_readiness = pd.concat(dfs, ignore_index=True)
+
+# Display the merged dataframe
+print(merged_readiness.head(30))
+
+###Importing the RPE data from Google Sheets
+import pandas as pd
+import re
+
+# This function will convert the url to a download link
+def convert_gsheets_url(u):
+    try:
+        worksheet_id = u.split("#gid=")[1]
+    except IndexError:
+        # Couldn't get worksheet id. Ignore it
+        worksheet_id = None
+    u = re.findall("https://docs.google.com/spreadsheets/d/.*?/", u)[0]
+    u += "export"
+    u += "?format=csv"
+    if worksheet_id:
+        u += "&gid={}".format(worksheet_id)
+    return u
+
+sample_url = "https://docs.google.com/spreadsheets/d/1dD8voDYfQCV-uH_VBJX5VJXI3Bcte2JIqPlFojffmwo/edit?gid=0#gid=0"
+
+try:
+    url = convert_gsheets_url(sample_url)
+    RPE = pd.read_csv(url)
+    print("Read successfully")
+except Exception as e:
+    print(f"Could not read any data from the URL you provided. Error: {e}")
+    url = convert_gsheets_url(sample_url)
+    RPE = pd.read_csv(url)
+
+print(RPE)
+
+####################################Importing the PlayerData from CSVs##################################################################
+import pandas as pd
+
+# Function to load CSV and handle errors
+def load_csv(filename):
+    try:
+        return pd.read_csv(filename, on_bad_lines='skip')
+    except pd.errors.ParserError as e:
+        print(f"Error parsing {filename}: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame if there's an error
+
+# List of filenames
+filenames = [
+    '/work/UNCWSoccer/training_session_885fcd35-9ec3-4e33-ba69-114e5b9d785c.csv',
+    '/work/UNCWSoccer/training_session_302581d4-885e-492e-a38c-d4efbbd9719f (1).csv',
+    '/work/UNCWSoccer/training_session_bf4fa14f-2b4e-426a-bf04-54a0baecf82a.csv',
+    '/work/UNCWSoccer/training_session_6b612205-c551-4e90-aae0-bdb76d03e5be.csv',
+    '/work/UNCWSoccer/training_session_1c51812e-fb3c-4729-8766-dd51ee0108fa.csv',
+    '/work/UNCWSoccer/5b88b252-b153-4f36-8da3-c5980ef3cb33_whole_match.csv',
+    # Add more player_data csvs as needed
+]
+
+# Load and concatenate all CSV files
+dfs = [load_csv(filename) for filename in filenames]
+merged_playerdata = pd.concat(dfs, ignore_index=True)
+
+# Display the merged dataframe
+print(merged_playerdata.head(30))
+
+#################################Importing the Availability df from Google Sheets#################################
+import pandas as pd
+import re
+
+# This function will convert the url to a download link
+def convert_gsheets_url(u):
+    try:
+        worksheet_id = u.split("#gid=")[1]
+    except IndexError:
+        # Couldn't get worksheet id. Ignore it
+        worksheet_id = None
+    u = re.findall("https://docs.google.com/spreadsheets/d/.*?/", u)[0]
+    u += "export"
+    u += "?format=csv"
+    if worksheet_id:
+        u += "&gid={}".format(worksheet_id)
+    return u
+
+sample_url = "https://docs.google.com/spreadsheets/d/1Qc1lFn_qWclKSByS8r7iNHmvCFhI-q4IDv9uHCuQOxc/edit?gid=731741117#gid=731741117"
+
+try:
+    url = convert_gsheets_url(sample_url)
+    Availability = pd.read_csv(url)
+    print("Read successfully")
+except Exception as e:
+    print(f"Could not read any data from the URL you provided. Error: {e}")
+    url = convert_gsheets_url(sample_url)
+    Availability = pd.read_csv(url)
+
+print(Availability)
+
+#################################Cleaning and merging the dataframes####################################################################
+import pandas as pd
+from datetime import datetime, timedelta
+
+# Correcting specific names in the 'Athlete' column 
+name_corrections = {
+    'Aven Elizabeth Alvarez': 'Aven Alvarez', 
+    'Linda ullmark': 'Linda Ullmark', 
+    'hannah carlotta johann': 'Hannah Johann',
+    'hannah johann' : 'Hannah Johann',
+    'Jennifer Mary Dearie': 'Jenny Dearie',
+    'Jennifer Dearie': 'Jenny Dearie',
+    'Dearie Jennifer': 'Dearie Jenny',
+    'abby gundry' : 'Abby Gundry'
+}
+
+# Apply name corrections to the 'Athlete' column 
+if 'Athlete' in merged_playerdata.columns:
+    merged_playerdata['Athlete'] = merged_playerdata['Athlete'].replace(name_corrections)
+
+# Change 'First' from 'Jennifer' to 'Jenny'
+merged_readiness['First'] = merged_readiness['First'].replace({'Jennifer': 'Jenny'})
+
+# Split 'Athlete' column into 'First' and 'Last' 
+if 'Athlete' in merged_playerdata.columns:
+    merged_playerdata[['First', 'Last']] = merged_playerdata['Athlete'].str.split(' ', n=1, expand=True)
+
+# Split Name column into First and Last in Availability DataFrame
+Availability[['First', 'Last']] = Availability['Name'].str.split(' ', n=1, expand=True)
+
+# Convert Date columns to datetime format
+Availability['Date'] = pd.to_datetime(Availability['Date'], format='%m/%d/%Y', errors='coerce')
+
+# Verify the data before merging
+print("\nAvailability DataFrame:")
+print(Availability.head())
+
+# Convert StartTime to Date format in merged_playerdata
+merged_playerdata['Date'] = pd.to_datetime(merged_playerdata['Start Time'], format='%d/%m/%Y %H:%M').dt.date
+
+# Convert Date to datetime format in merged_readiness
+merged_readiness['Date'] = pd.to_datetime(merged_readiness['Date']).dt.date
+
+# Merge the dataframes on columns
+merged_data = pd.merge(merged_playerdata, merged_readiness[['Score', 'Fatigue', 'Soreness', 'Mood', 'Stress', 'Sleep Quality', 'Sleep Hours', 'Date', 'First', 'Last']], on=['Date', 'First', 'Last'], how='left')
+
+print("\nMerged Data after first merge:")
+print(merged_data.head())
+
+# Split 'NAME' column into 'First' and 'Last'
+if 'NAME' in RPE.columns:  
+    RPE[['Last', 'First']] = RPE['NAME'].str.split(',', n=1, expand=True) 
+    RPE['First'] = RPE['First'].str.strip()
+    RPE['Last'] = RPE['Last'].str.strip()
+
+# Extract the RPE values from each date column and include 'First' and 'Last'
+rpe_values = RPE[RPE['NAME'] != 'sRPE'].melt(id_vars=['NAME', 'First', 'Last'], var_name='Date', value_name='RPE')
+rpe_values.columns = ['Name', 'First', 'Last', 'Date', 'RPE']
+
+# Print the RPE DataFrame to inspect their structure
+print("\nRPE Values DataFrame:")
+print(rpe_values.head())
+
+# Filter out rows with NaN values in 'First', 'Last', and 'Date' columns
+rpe_values = rpe_values.dropna(subset=['First', 'Last', 'Date'])
+
+# Convert 'Date' column to datetime in both dataframes
+merged_data['Date'] = pd.to_datetime(merged_data['Date'], errors='coerce')
+rpe_values['Date'] = pd.to_datetime(rpe_values['Date'], errors='coerce')
+
+# Check unique values in 'First', 'Last', and 'Date' columns
+print("\nUnique values in merged_data:")
+print(merged_data[['First', 'Last', 'Date']].drop_duplicates())
+
+print("\nUnique values in rpe_values:")
+print(rpe_values[['First', 'Last', 'Date']].drop_duplicates())
+
+# Drop the RPE column from merged_data if it exists
+if 'RPE' in merged_data.columns:
+    merged_data = merged_data.drop(columns=['RPE'])
+
+# Print merged_data before merging with rpe_values
+print("\nMerged Data before merging with RPE:")
+print(merged_data.head())
+
+# Merge for RPE
+merged_data = pd.merge(merged_data, rpe_values[['First', 'Last', 'Date', 'RPE']], on=['Date', 'First', 'Last'], how='left')
+
+# Print merged_data to check if 'First' and 'Last' columns are present
+print("\nMerged Data after second merge:")
+print(merged_data.head())
+
+# Merge the dataframes on columns
+merged_data = pd.merge(merged_data, Availability[['First', 'Last', 'Date', 'Availability', 'Team Training']], on=['First', 'Last', 'Date'], how='left')
+
+# Display the merged dataframe to verify the merge
+print("\nFinal Merged Data:")
+print(merged_data)
+
+################################## Create a dictionary to map player names to position#################################
+player_mapping = {
+    ('', ''): 1,
+    ('', ''): 9,
+    ('', ''): 10,
+    ('', ''): 1,
+    ('', ''): 10,
+    ('', ''): 2,
+    ('', ''): 10,
+    ('', ''): 10,
+    ('' , ''): 4,
+    ('',''): 4,
+    ('', ''): 9,
+    ('', ''): 1,
+    ('' , ''): 9,
+    ('' , ''): 3,
+    ('' , ''): 6,
+    ('' , ''): 6,
+    ('' , ''): 3,
+    ('' , ''): 9,
+    ('' , ''): 1,
+    ('' , ''): 9,
+}
+
+# Create the 'Positions2' column based on the mapping
+merged_data['Positions2'] = merged_data.apply(lambda row: player_mapping.get((row['First'], row['Last']), None), axis=1)
+
+# Display the dataframe to verify the new column
+print(merged_data)
+
+#################################Create a MD variable##################################################################
+import pandas as pd
+from datetime import datetime, timedelta
+
+df = merged_data
+
+# Define match days
+match_days = ["February 22, 2025", "March 1, 2025", "April 5, 2025", "April 12, 2025"]
+match_days = [datetime.strptime(date, "%B %d, %Y") for date in match_days]
+
+# Ensure the 'Date' column is in datetime format
+df['Date'] = pd.to_datetime(df['Date'])
+
+# Calculate MD (days to next match day)
+def calculate_md(date):
+    days_to_match = [(match_day - date).days for match_day in match_days]
+    days_to_next_match = min([days for days in days_to_match if days >= 0], default=None)
+    return -days_to_next_match if days_to_next_match is not None else None
+
+df['MD'] = df['Date'].apply(calculate_md)
+
+# Display the dataframe with the new 'MD' column
+print(df)
+
+#################################Create A Max Speed % Variable##################################################################
+df = merged_data
+
+# Calculate Max Speed % (percentage of max speed ever for each player)
+df['Max speed %'] = df.groupby('Athlete')['Max Speed (km/h)'].transform(lambda x: x / x.cummax() * 100)
+
+print(df)
+
+#################################Create the required table for the Sports Scientist#################################
+import pandas as pd
+from tabulate import tabulate
+
+df = merged_data
+
+# Define the columns for the table
+columns = [
+    "Date", "Athlete", "Positions2", "Role", "Availability", "Team Training", "MD",  "Distance (m)", "RPE", "Sprint Events", 
+    "High Intensity Events", "Max Speed (km/h)", "Max speed %", "Sprint Distance (m) (Speed Zone 6)", 
+    "High intensity Running Distance (m) (Speed Zone 5)", "Meters / Minutes", "Acceleration Events", 
+    "Deceleration Events", "Distance Profile M at 1 Kph", "Distance Profile M at 2 Kph", 
+    "Distance Profile M at 3 Kph", "Distance Profile M at 4 Kph", "Distance Profile M at 5 Kph", 
+    "Distance Profile M at 6 Kph", "Distance Profile M at 7 Kph", "Distance Profile M at 8 Kph", 
+    "Distance Profile M at 9 Kph", "Distance Profile M at 10 Kph", "Distance Profile M at 11 Kph", 
+    "Distance Profile M at 12 Kph", "Distance Profile M at 13 Kph", "Distance Profile M at 14 Kph", 
+    "Distance Profile M at 15 Kph", "Distance Profile M at 16 Kph", "Distance Profile M at 17 Kph", 
+    "Distance Profile M at 18 Kph", "Distance Profile M at 19 Kph", "Distance Profile M at 20 Kph", 
+    "Distance Profile M at 21 Kph", "Distance Profile M at 22 Kph", "Distance Profile M at 23 Kph", 
+    "Distance Profile M at 24 Kph", "Distance Profile M at 25 Kph", "Distance Profile M at 26 Kph", 
+    "Distance Profile M at 27 Kph", "Distance Profile M at 28 Kph", "Distance Profile M at 29 Kph", 
+    "Distance Profile M at 30 Kph", "Distance Profile M at 31 Kph", "Distance Profile M at 32 Kph", 
+    "Distance Profile M at 33 Kph", "Distance Profile M at 34 Kph", "Distance Profile M at 35 Kph",
+    "Distance Profile M at 36 Kph","Distance Profile M at 37 Kph","Distance Profile M at 38 Kph",
+    "Distance Profile M at 39 Kph","Distance Profile M at 40 Kph","Score","Fatigue","Mood","Soreness",
+    "Stress","Sleep Quality","Sleep Hours"
+]
+
+# Create a new DataFrame with only the specified columns
+df_selected_columns = df[columns]
+
+# Sort the DataFrame by date in descending order
+df_selected_columns = df_selected_columns.sort_values(by='Date', ascending=False)
+
+# Convert the DataFrame to a table
+df_selected_columns = tabulate(df_selected_columns, headers='keys', tablefmt='fancy_grid')
+
+# Display the table
+print(df_selected_columns)
